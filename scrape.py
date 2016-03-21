@@ -3,6 +3,7 @@ from collections import deque
 import argparse
 import urllib2
 from bs4 import BeautifulSoup
+import os
 import re
 import csv
 from time import gmtime, strftime
@@ -14,6 +15,7 @@ parser.add_argument('--retry-failed', type=bool, metavar='failed', help='retry f
 
 args = parser.parse_args()
 site = args.site
+csvpath = '%s.csv'%site
 
 LOUNGE_URL = "http://%slounge.com/"%site
 
@@ -29,6 +31,8 @@ for match in matches:
     if match > current:
         current = match
 
+print "Current match is %s" % current
+
 def getMatch(url, i):
     req = urllib2.Request(url + str(i), headers={'User-Agent' : "scraping bot"})
     con = urllib2.urlopen(req)
@@ -37,7 +41,7 @@ def getMatch(url, i):
     soup = BeautifulSoup(html, 'html.parser')
     if len(soup.select("body > main > section > h1")) > 0 and soup.select("body > main > section > h1")[0].text == '404':
         print ("404, matchid = " + str(i))
-        with open('%s.csv'%site, 'ab') as csvfile:
+        with open(csvpath, 'ab') as csvfile:
             writer = unicodecsv.writer(csvfile, quoting=csv.QUOTE_NONNUMERIC)
             writer.writerow([i, "404"])
         return
@@ -59,16 +63,19 @@ def getMatch(url, i):
         status = status.text.strip()
     winner = "a" if team_a_won else "b" if team_b_won else "none"
 
-    with open('%s.csv'%site, 'ab') as csvfile:
+    with open(csvpath, 'ab') as csvfile:
         writer = unicodecsv.writer(csvfile, quoting=csv.QUOTE_NONNUMERIC)
         writer.writerow([i, date, bo, team_a, team_b, team_a_pct, team_b_pct, team_a_odds, team_b_odds, winner, status])
 
 start = 1
 url = LOUNGE_URL + "match?m="
 
-with open('%s.csv'%site, 'rb') as csvfile:
-    reader = unicodecsv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
-    start = int(deque(reader,1)[0][0])+1
+if os.path.exists(csvpath):
+    with open(csvpath, 'rb') as csvfile:
+        reader = unicodecsv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
+        start = int(deque(reader,1)[0][0])+1
+else:
+    start = 1
 
 if args.retry_failed:
     with open('%s.csv'%site, 'rb') as csvfile:

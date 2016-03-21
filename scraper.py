@@ -39,7 +39,7 @@ def writeMatchesToFile(matchesOfPage, iteration):
          hltvWriter.writerow(match)
 
 # loops over pages (-> 8800 all matches in 2014 & 2015 at 27.11.2015)
-for i in range(0, 12000, 50):
+for i in range(0, 14000, 50):
    hltvUrlbase = 'http://www.hltv.org/?pageid=188&statsfilter=0&offset='
    hltvUrlOffset = str(i)
    hltvUrl = hltvUrlbase + hltvUrlOffset
