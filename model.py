@@ -21,7 +21,7 @@ from sklearn import svm
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.decomposition import PCA
 from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.cross_validation import KFold
+from sklearn.cross_validation import KFold, cross_val_score
 import matplotlib.pyplot as plt
 import itertools
 from sklearn import metrics
@@ -75,7 +75,6 @@ for minGames in range(0,500,50):
         games[0].append(hstack([[date],team2vec - team1vec]))
         games[1].append(-1 * winner)
     print len(games[0])
-    continue
 
     minAccuracy = 100
     worstNEstimators = 0
@@ -90,48 +89,23 @@ for minGames in range(0,500,50):
         n_estimators = random.randint(500,5000)
         learning_rate = random.uniform(.1,1)
         max_depth = random.randint(1,6)
+        print "Settings: n_estimators = %d, learning_rate = %.2f, max_depth = %d"%(n_estimators, learning_rate, max_depth)
+        clf = GradientBoostingClassifier(n_estimators=n_estimators, learning_rate=learning_rate, max_depth=max_depth, random_state=0)
         kf = KFold(len(games[0]), n_folds=5, shuffle=True)
-        n = 0
-        for train_indices, test_indices in kf:
-            n += 1
-            print "Fold %d of 5" % n
-            trainX = vstack([games[0][i] for i in train_indices])
-            trainY = [games[1][i] for i in train_indices]
-            clf = GradientBoostingClassifier(n_estimators=1000, learning_rate=1, max_depth=4, random_state=0)
-            clf.fit(trainX,trainY)
-            guesses = []
-            actual = [games[1][i] for i in test_indices]
-            correct = 0
-            errors = []
-            confidences = []
-            for i in test_indices:
-                prob1, prob2 = clf.predict_proba(games[0][i].toarray())[0]
-                confidence = abs(prob1 - .5) * 200
-                guesses.append(prob2)
-                if prob2 > prob1 and games[1][i] == 1 or prob1 > prob2 and games[1][i] == -1:
-                    correct += 1
-                    confidences.append(confidence)
-                    #print "Correct, confidence = %.2f" % confidence
-                else:
-                    errors.append(confidence)
-                    #print "Incorrect, error    = %.2f" % confidence
-            # fpr, tpr, thresholds = metrics.roc_curve(np.array(actual), np.array(guesses), pos_label=1)
-            # plt.figure(i)
-            # plt.plot(fpr, tpr)
-            # plt.show()
-            accuracy = float(correct)/len(test_indices)*100
-            if accuracy < minAccuracy:
-                minAccuracy = accuracy
-                worstNEstimators = n_estimators
-                worstLearningRate = learning_rate
-                worstMaxDepth = max_depth
-            if accuracy > maxAccuracy:
-                maxAccuracy = accuracy
-                bestNEstimators = n_estimators
-                bestLearningRate = learning_rate
-                bestMaxDepth = max_depth
-            print "Average error: %.2f, Average confidence: %.2f" % ((sum(errors) / len(errors)), (sum(confidences) / len(confidences)))
-            print "Correct: %.2f%%, Settings: n_estimators = %d, learning_rate = %.2f, max_depth = %d"%(accuracy, n_estimators, learning_rate, max_depth)
+        scores = cross_val_score(clf, vstack(games[0]).toarray(), games[1], cv = kf)
+        accuracy = scores.mean()
+        variance = scores.std() * 2
+        if accuracy < minAccuracy:
+            minAccuracy = accuracy
+            worstNEstimators = n_estimators
+            worstLearningRate = learning_rate
+            worstMaxDepth = max_depth
+        if accuracy > maxAccuracy:
+            maxAccuracy = accuracy
+            bestNEstimators = n_estimators
+            bestLearningRate = learning_rate
+            bestMaxDepth = max_depth
+        print "Accuracy: %0.2f (+/- %0.2f)" % (accuracy, variance)
     print "Best accuracy: %.2f%%, Settings: n_estimators = %d, learning_rate = %.2f, max_depth = %d"%(maxAccuracy, bestNEstimators, bestLearningRate, bestMaxDepth)
     print "Worst accuracy: %.2f%%, Settings: n_estimators = %d, learning_rate = %.2f, max_depth = %d"%(minAccuracy, worstNEstimators, worstLearningRate, worstMaxDepth)
 

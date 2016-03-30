@@ -15,7 +15,7 @@ parser.add_argument('--retry-failed', type=bool, metavar='failed', help='retry f
 
 args = parser.parse_args()
 site = args.site
-csvpath = '%s.csv'%site
+csvpath = '%s_lounge.csv'%site
 
 LOUNGE_URL = "http://%slounge.com/"%site
 
@@ -30,8 +30,6 @@ for match in matches:
     match = int(re.findall(r'\d+', match['href'])[0])
     if match > current:
         current = match
-
-print "Current match is %s" % current
 
 def getMatch(url, i):
     req = urllib2.Request(url + str(i), headers={'User-Agent' : "scraping bot"})
@@ -77,8 +75,11 @@ if os.path.exists(csvpath):
 else:
     start = 1
 
+print "Last match we have is %s" % start
+print "Current match is %s" % current
+
 if args.retry_failed:
-    with open('%s.csv'%site, 'rb') as csvfile:
+    with open(csvpath, 'rb') as csvfile:
         reader = unicodecsv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
         for row in reader:
             if row[1] == 'failed' or row[1] == '404':
@@ -92,7 +93,7 @@ else:
             getMatch(url, i)
         except Exception as e:
             print(str(i) +  " failed parsing")
-            with open('%s.csv'%site, 'ab') as csvfile:
+            with open(csvpath, 'ab') as csvfile:
                 writer = unicodecsv.writer(csvfile, quoting=csv.QUOTE_NONNUMERIC)
                 writer.writerow([i, "failed"])
         #writeMatchesToFile(matchesOfPage, i)

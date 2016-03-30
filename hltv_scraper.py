@@ -11,7 +11,7 @@ from time import gmtime, strftime
 import datetime
 import unicodecsv
 
-def getPlayers(matchId, team1, team2):
+def getMatchInfo(matchId, team1, team2):
     hltvUrl = 'http://www.hltv.org/?pageid=188&statsfilter=0&matchid=' + matchId
     hltvReq = urllib2.Request(hltvUrl, headers={
             'Pragma': 'no-cache',
@@ -44,7 +44,13 @@ def getPlayers(matchId, team1, team2):
     while len(team2players) < 5:
         team2players += ['0']
 
-    return team1players[:5] + team2players[:5]
+    matchPage = hltvSoup.select('div.mainAreaNoHeadline > div.centerNoHeadline > div > div > div.covGroupBoxContent > div > div > div.covSmallHeadline > a')[0]
+    if matchPage.get_text() == 'Match page':
+        matchPageUrl = matchPage.get('href')
+    else:
+        matchPageUrl = ''
+
+    return team1players[:5] + team2players[:5], matchPageUrl
 
 # extract match information and format to list
 def formatMatch(hltvMatch):
@@ -52,10 +58,14 @@ def formatMatch(hltvMatch):
     hltvMatchScore = re.findall('\((\d*?)\)', hltvMatchNames)
     hltvMatchIds = [re.search('(teamid|matchid|eventid)=?(\d*)', link.get('href')).group(2) for link in hltvMatch.select("a")]
     hltvMatchDate = datetime.datetime.strptime(hltvMatchNames.split(';')[0], '%d/%m %y')
-    hltvMatchMap = hltvMatchNames.split(';')[3]
+    hltvMatchSplit = hltvMatchNames.split(';')
+    hltvMatchMap = hltvMatchSplit[3]
+    team1name = re.match("(.*) \(\d+\)", hltvMatchSplit[1]).group(1)
+    team2name = re.match("(.*) \(\d+\)", hltvMatchSplit[2]).group(1)
     if hltvMatchIds[0] in found:
         return None
-    hltvMatchLine = [hltvMatchDate] + hltvMatchIds + hltvMatchScore + getPlayers(hltvMatchIds[0],hltvMatchIds[1],hltvMatchIds[2]) + [hltvMatchMap]
+    matchInfo = getMatchInfo(hltvMatchIds[0],hltvMatchIds[1],hltvMatchIds[2])
+    hltvMatchLine = [hltvMatchDate] + hltvMatchIds + hltvMatchScore + matchInfo[0] + [hltvMatchMap, team1name, team2name, matchInfo[1]]
     return hltvMatchLine
 
 # gets all matches from one page
@@ -99,7 +109,7 @@ else:
     with open('hltv_matches.csv', 'ab') as csvfile:
         hltvWriter = unicodecsv.writer(csvfile, quoting=csv.QUOTE_NONNUMERIC)
         hltvWriter.writerow(["date", "matchid", "teamid1", "teamid2", "eventid", "score1", "score2",
-            "team1player1id", "team1player2id", "team1player3id", "team1player4id", "team1player5id", "team2player1id", "team2player2id", "team2player3id", "team2player4id", "team2player5id", "map", "team1name", "team2name"])
+            "team1player1id", "team1player2id", "team1player3id", "team1player4id", "team1player5id", "team2player1id", "team2player2id", "team2player3id", "team2player4id", "team2player5id", "map", "team1name", "team2name", "match"])
 
 print 'Scanning matches until %s' % maxMatch
 
